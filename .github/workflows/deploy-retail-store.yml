@@ -27,16 +27,19 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # Configure AWS credentials using OIDC role
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::149536455430:role/GitHubActionsDeployRole
+          role-to-assume: arn:aws:iam::149536455430:role/github-actions-eks-deploy
           aws-region: ${{ env.AWS_REGION }}
 
+      # Log in to Amazon ECR
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      # Build, Tag, and Push Docker Image
       - name: Build, Tag, and Push Docker Image
         run: |
           IMAGE_URI=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
@@ -44,35 +47,38 @@ jobs:
           docker push $IMAGE_URI
           echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
 
+      # Update kubeconfig to allow kubectl to connect to EKS
       - name: Update Kubeconfig for EKS
         run: |
           aws eks update-kubeconfig \
             --region ${{ env.AWS_REGION }} \
             --name ${{ env.CLUSTER_NAME }}
 
+      # Deploy in-cluster dependencies (databases, message brokers)
       - name: Deploy Dependencies
         run: |
           kubectl apply -f manifests/dependencies/
 
+      # Deploy Retail Store Application
       - name: Deploy Retail Store App
         run: |
-          # Update image dynamically
           kubectl set image deployment/retail-store \
-            retail-store=${IMAGE_URI} \
+            retail-store=${{ env.IMAGE_URI }} \
             -n default || true
-
           kubectl apply -f manifests/app/
 
+      # Wait for deployment to complete
       - name: Wait for Deployment
         run: |
-          kubectl rollout status deployment/retail-store --timeout=180s
+          kubectl rollout status deployment/retail-store -n default --timeout=180s
 
+      # Retrieve LoadBalancer hostname
       - name: Get Service External IP
         id: get-ip
         run: |
           echo "Fetching LoadBalancer EXTERNAL-IP..."
           for i in {1..15}; do
-            EXTERNAL_IP=$(kubectl get svc retail-store -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
+            EXTERNAL_IP=$(kubectl get svc retail-store -n default -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
             if [ -n "$EXTERNAL_IP" ]; then
               echo "EXTERNAL_IP=$EXTERNAL_IP" >> $GITHUB_ENV
               echo "Public URL: http://$EXTERNAL_IP"
@@ -84,6 +90,7 @@ jobs:
           echo "Failed to retrieve EXTERNAL-IP"
           exit 1
 
+      # Comment deployment URL on PR
       - name: Comment Deployment URL on PR
         if: github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@v2
@@ -94,6 +101,7 @@ jobs:
             ✅ **Cluster:** `${{ env.CLUSTER_NAME }}`
             🌍 **URL:** http://${{ env.EXTERNAL_IP }}
 
+      # Display deployment summary
       - name: Show Summary
         if: always()
         run: |
