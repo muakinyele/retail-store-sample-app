@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: innovatemart-app
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: innovatemart-app
+  template:
+    metadata:
+      labels:
+        app: innovatemart-app
+    spec:
+      containers:
+        - name: innovatemart-app
+          image: 149536455430.dkr.ecr.us-east-1.amazonaws.com/innovatemart:latest  # update with your image
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: innovatemart-service
+  namespace: default
+spec:
+  type: LoadBalancer
+  selector:
+    app: innovatemart-app
+  ports:
+    - port: 80
+      targetPort: 8080

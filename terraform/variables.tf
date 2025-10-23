@@ -32,3 +32,15 @@ variable "region" {
   type        = string
   default     = "us-east-1"
 }
+
+variable "cluster_endpoint_public_access" {
+  description = "Enable public access to the EKS cluster endpoint"
+  type        = bool
+  default     = true
+}
+
+variable "cluster_endpoint_private_access" {
+  description = "Enable private access to the EKS cluster endpoint"
+  type        = bool
+  default     = true
+}

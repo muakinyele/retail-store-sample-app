@@ -20,7 +20,39 @@ module "eks" {
     Environment = "dev"
     Project     = "InnovateMart"
   }
+
+    # Add these lines 👇
+  cluster_endpoint_public_access  = true
+  cluster_endpoint_private_access = true
+
+    # 👇 Add this to bootstrap access
+  enable_cluster_creator_admin_permissions = true
+
 }
+
+
+# Add IAM user or role to EKS cluster authentication
+module "aws_auth" {
+  source  = "terraform-aws-modules/eks/aws//modules/aws-auth"
+  version = "~> 20.0"
+
+  manage_aws_auth_configmap = true
+  aws_auth_roles = [
+    {
+      rolearn  = "arn:aws:iam::149536455430:role/cluster"
+      username = "admin"
+      groups   = ["system:masters"]
+    }
+  ]
+  aws_auth_users = [
+    {
+      userarn  = "arn:aws:iam::149536455430:user/cluster"
+      username = "admin"
+      groups   = ["system:masters"]
+    }
+  ]
+}
+
 
 # --------------------------------------------------
 # VPC Module
