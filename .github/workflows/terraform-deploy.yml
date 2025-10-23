@@ -66,10 +66,11 @@ jobs:
 
       - name: Create backend.tf if missing
         working-directory: ${{ env.TERRAFORM_DIR }}
+        shell: bash
         run: |
           if [ ! -f backend.tf ]; then
             echo "Creating backend.tf configuration..."
-            cat <<EOF > backend.tf
+            cat <<'EOF' > backend.tf
 terraform {
   backend "s3" {
     bucket         = "${TF_BACKEND_BUCKET}"
