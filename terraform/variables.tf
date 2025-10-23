@@ -23,9 +23,9 @@ variable "pgp_key" {
 }
 
 
-variable "account_id" {
-  type = string
-}
+# variable "account_id" {
+#   type = string
+# }
 
 variable "region" {
   description = "AWS region where resources will be created"
@@ -43,4 +43,9 @@ variable "cluster_endpoint_private_access" {
   description = "Enable private access to the EKS cluster endpoint"
   type        = bool
   default     = true
+}
+
+variable "account_id" {
+  description = "AWS Account ID used for resource naming and IAM roles"
+  type        = string
 }
