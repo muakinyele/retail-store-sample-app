@@ -8,11 +8,15 @@ on:
 
 jobs:
   deploy:
-    name: Deploy to Amazon EKS
+    name: Deploy to Amazon EKS (InnovateMart)
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
+
+    env:
+      AWS_REGION: us-east-1
+      CLUSTER_NAME: innovatemart-eks
 
     steps:
       - name: Checkout repository
@@ -22,29 +26,57 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: arn:aws:iam::149536455430:role/github-actions-eks-deploy
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Update kubeconfig for EKS
         run: |
-          aws eks update-kubeconfig --region us-east-1 --name retail-store-eks-cluster
+          aws eks update-kubeconfig \
+            --region ${{ env.AWS_REGION }} \
+            --name ${{ env.CLUSTER_NAME }}
 
       - name: Verify cluster connection
         run: kubectl get nodes
 
       - name: Deploy dependencies (Postgres, MySQL, Redis, RabbitMQ, DynamoDB)
         run: |
+          echo "Deploying dependencies to $CLUSTER_NAME..."
           kubectl apply -f manifests/dependencies/
-          kubectl rollout status deployment/retail-store-postgres || true
-          kubectl rollout status deployment/retail-store-mysql || true
-          kubectl rollout status deployment/retail-store-redis || true
-          kubectl rollout status deployment/retail-store-rabbitmq || true
-          kubectl rollout status deployment/retail-store-dynamodb || true
+          kubectl rollout status deployment/retail-store-postgres --timeout=180s || true
+          kubectl rollout status deployment/retail-store-mysql --timeout=180s || true
+          kubectl rollout status deployment/retail-store-redis --timeout=180s || true
+          kubectl rollout status deployment/retail-store-rabbitmq --timeout=180s || true
+          kubectl rollout status deployment/retail-store-dynamodb --timeout=180s || true
 
-      - name: Deploy application
+      - name: Deploy Retail Store Application
         run: |
+          echo "Deploying Retail Store App to cluster: $CLUSTER_NAME"
           kubectl apply -f manifests/app/
-          kubectl rollout status deployment/retail-store-ui
+          kubectl set image deployment/retail-store-ui \
+            retail-store-ui=public.ecr.aws/aws-containers/retail-store-sample-ui:1.3.0 \
+            --namespace default || true
+          kubectl rollout status deployment/retail-store-ui --timeout=180s
 
-      - name: Get Service URL
+      - name: Get Service External URL
+        id: get-service
         run: |
-          kubectl get svc retail-store-ui
+          echo "Fetching LoadBalancer External IP..."
+          for i in {1..15}; do
+            EXTERNAL_IP=$(kubectl get svc retail-store-ui -n default -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
+            if [ -n "$EXTERNAL_IP" ]; then
+              echo "EXTERNAL_IP=$EXTERNAL_IP" >> $GITHUB_ENV
+              echo "Public URL: http://$EXTERNAL_IP"
+              exit 0
+            fi
+            echo "Waiting for LoadBalancer EXTERNAL-IP... (attempt $i/15)"
+            sleep 20
+          done
+          echo "Failed to retrieve EXTERNAL-IP"
+          exit 1
+
+      - name: Show Deployment Summary
+        if: always()
+        run: |
+          echo "### 🚀 Retail Store App Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "**Cluster:** $CLUSTER_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** $AWS_REGION" >> $GITHUB_STEP_SUMMARY
+          echo "**Public URL:** http://${EXTERNAL_IP}" >> $GITHUB_STEP_SUMMARY

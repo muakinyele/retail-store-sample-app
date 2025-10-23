@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: retail-store-dynamodb
+  namespace: default
+spec:
+  ports:
+    - port: 8000
+      targetPort: 8000
+  selector:
+    app: retail-store-dynamodb
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: retail-store-dynamodb
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: retail-store-dynamodb
+  template:
+    metadata:
+      labels:
+        app: retail-store-dynamodb
+    spec:
+      containers:
+        - name: dynamodb-local
+          image: amazon/dynamodb-local
+          ports:
+            - containerPort: 8000
+          command: ["java", "-jar", "DynamoDBLocal.jar", "-sharedDb"]

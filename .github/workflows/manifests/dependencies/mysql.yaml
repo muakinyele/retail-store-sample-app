@@ -1,9 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: retail-store-mysql
+  namespace: default
+spec:
+  ports:
+    - port: 3306
+      targetPort: 3306
+  selector:
+    app: retail-store-mysql
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: retail-store-mysql
-  labels:
-    app: retail-store-mysql
+  namespace: default
 spec:
   replicas: 1
   selector:
@@ -19,13 +30,9 @@ spec:
           image: mysql:8.0
           env:
             - name: MYSQL_ROOT_PASSWORD
-              value: "retailstore"
+              value: root123
             - name: MYSQL_DATABASE
-              value: "retailstore"
-            - name: MYSQL_USER
-              value: "retail"
-            - name: MYSQL_PASSWORD
-              value: "retailstore"
+              value: retailstore
           ports:
             - containerPort: 3306
           volumeMounts:
@@ -33,16 +40,18 @@ spec:
               mountPath: /var/lib/mysql
       volumes:
         - name: mysql-data
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: mysql-pvc
 ---
 apiVersion: v1
-kind: Service
+kind: PersistentVolumeClaim
 metadata:
-  name: retail-store-mysql
+  name: mysql-pvc
+  namespace: default
 spec:
-  selector:
-    app: retail-store-mysql
-  ports:
-    - port: 3306
-      targetPort: 3306
-  type: ClusterIP
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: gp2
