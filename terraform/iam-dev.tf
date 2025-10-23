@@ -3,8 +3,13 @@
 # --------------------------------------------------
 resource "aws_iam_user" "dev_readonly_user" {
   name = "innovatemart-dev-readonly"
+
   tags = {
     Team = "dev"
+  }
+
+  lifecycle {
+    prevent_destroy = true
   }
 }
 
@@ -42,6 +47,10 @@ resource "aws_iam_user_policy" "dev_readonly_inline" {
   name   = "innovatemart-dev-readonly-policy"
   user   = aws_iam_user.dev_readonly_user.name
   policy = data.aws_iam_policy_document.dev_readonly_policy.json
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # --------------------------------------------------
@@ -50,4 +59,8 @@ resource "aws_iam_user_policy" "dev_readonly_inline" {
 # NOTE: Only create this if devs need programmatic access.
 resource "aws_iam_access_key" "dev_readonly_key" {
   user = aws_iam_user.dev_readonly_user.name
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }

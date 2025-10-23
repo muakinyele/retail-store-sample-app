@@ -11,6 +11,10 @@ resource "aws_iam_openid_connect_provider" "github" {
   thumbprint_list = [
     "6938fd4d98bab03faadb97b34396831e3780aea1"
   ]
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # --------------------------------------------------
@@ -30,6 +34,7 @@ data "aws_iam_policy_document" "github_assume_role" {
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
+      # Update with your actual GitHub org/repo
       values   = ["repo:your-github-org/your-repo-name:*"]
     }
   }
@@ -38,6 +43,10 @@ data "aws_iam_policy_document" "github_assume_role" {
 resource "aws_iam_role" "github_actions" {
   name               = "github-actions-oidc-role"
   assume_role_policy = data.aws_iam_policy_document.github_assume_role.json
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # --------------------------------------------------
@@ -60,9 +69,17 @@ data "aws_iam_policy_document" "github_policy" {
 resource "aws_iam_policy" "github_actions_policy" {
   name   = "github-actions-terraform-policy"
   policy = data.aws_iam_policy_document.github_policy.json
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "github_attach" {
   role       = aws_iam_role.github_actions.name
   policy_arn = aws_iam_policy.github_actions_policy.arn
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
