@@ -1,13 +1,12 @@
 terraform {
   backend "s3" {
     bucket         = "innovate-mart"
-    key            = "terraform/state"
-    region         = "eu-west-1"      # ✅ Keep the backend region
-    dynamodb_table = "your-dynamodb-lock-table"
+    key            = "infra/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "innovatemart-terraform-locks"
     encrypt        = true
   }
 }
-
 
 
 

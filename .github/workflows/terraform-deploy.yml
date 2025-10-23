@@ -1,5 +1,3 @@
-name: Terraform Deployment
-
 on:
   push:
     branches:
@@ -12,7 +10,11 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
+  AWS_DEFAULT_REGION: us-east-1
   TERRAFORM_DIR: terraform
+  TF_BACKEND_BUCKET: innovate-mart
+  TF_BACKEND_DYNAMODB: innovatemart-terraform-locks
+  TF_STATE_KEY: infra/terraform.tfstate
 
 jobs:
   terraform-deploy:
@@ -32,18 +34,20 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.6.6
-
-      # Optional: Validate that backend resources exist
-      - name: Check Terraform Backend (S3 + DynamoDB)
-        run: |
-          echo "Checking backend resources..."
-          aws s3api head-bucket --bucket innovate-mart && echo "✅ S3 bucket OK"
-          aws dynamodb describe-table --table-name innovatemart-terraform-locks && echo "✅ DynamoDB lock table OK"
+          terraform_version: 1.7.5
 
       - name: Terraform Init
         working-directory: ${{ env.TERRAFORM_DIR }}
-        run: terraform init -input=false
+        run: |
+          set -euo pipefail
+          export AWS_REGION=${AWS_REGION}
+          export AWS_DEFAULT_REGION=${AWS_REGION}
+          terraform init -input=false -reconfigure \
+            -backend-config="bucket=${TF_BACKEND_BUCKET}" \
+            -backend-config="key=${TF_STATE_KEY}" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="dynamodb_table=${TF_BACKEND_DYNAMODB}" \
+            -backend-config="encrypt=true"
 
       - name: Terraform Validate
         working-directory: ${{ env.TERRAFORM_DIR }}
@@ -54,29 +58,18 @@ jobs:
         working-directory: ${{ env.TERRAFORM_DIR }}
         run: terraform plan -no-color -out=tfplan
 
-      - name: Upload Terraform Plan Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: terraform-plan
-          path: ${{ env.TERRAFORM_DIR }}/tfplan
-
-      - name: Terraform Apply (Only if changes)
+      - name: Terraform Apply
         if: success()
         working-directory: ${{ env.TERRAFORM_DIR }}
         run: |
           set -euo pipefail
-          if terraform show -no-color tfplan | grep -q "No changes. Infrastructure is up-to-date."; then
-            echo "✅ No infrastructure changes to apply."
-          else
-            echo "🚀 Applying Terraform plan..."
-            terraform apply -auto-approve tfplan
-          fi
+          terraform apply -auto-approve tfplan
 
       - name: Deployment Summary
         if: always()
         run: |
           echo "### 🌍 Terraform Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "**Region:** $AWS_REGION" >> $GITHUB_STEP_SUMMARY
-          echo "**Backend Bucket:** innovate-mart" >> $GITHUB_STEP_SUMMARY
-          echo "**Lock Table:** innovatemart-terraform-locks" >> $GITHUB_STEP_SUMMARY
-          echo "**State File:** infra/terraform.tfstate" >> $GITHUB_STEP_SUMMARY
+          echo "**S3 Backend:** $TF_BACKEND_BUCKET" >> $GITHUB_STEP_SUMMARY
+          echo "**Lock Table:** $TF_BACKEND_DYNAMODB" >> $GITHUB_STEP_SUMMARY
+          echo "**State Key:** $TF_STATE_KEY" >> $GITHUB_STEP_SUMMARY
