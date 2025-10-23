@@ -1,6 +1,6 @@
 terraform {
   backend "s3" {
-    bucket         = "your-tf-backend-bucket-name"
+    bucket         = "innovate-mart"
     key            = "terraform/state"
     region         = "eu-west-1"      # ✅ Keep the backend region
     dynamodb_table = "your-dynamodb-lock-table"
