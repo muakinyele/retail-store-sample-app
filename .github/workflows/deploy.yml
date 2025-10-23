@@ -40,7 +40,7 @@ jobs:
       - name: Deploy dependencies (Postgres, MySQL, Redis, RabbitMQ, DynamoDB)
         run: |
           echo "Deploying dependencies to $CLUSTER_NAME..."
-          kubectl apply -f manifests/dependencies/
+          kubectl apply -f .github/workflows/manifests/dependencies/
           kubectl rollout status deployment/retail-store-postgres --timeout=180s || true
           kubectl rollout status deployment/retail-store-mysql --timeout=180s || true
           kubectl rollout status deployment/retail-store-redis --timeout=180s || true
