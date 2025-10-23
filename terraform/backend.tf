@@ -1,14 +1,5 @@
 terraform {
   backend "s3" {
-    bucket       = "innovate-mart"
-    key          = "terraform/state.tfstate"
-    region       = "us-east-1"
-    use_lockfile = true
-  }
-}
-
-terraform {
-  backend "s3" {
     bucket         = "your-tf-backend-bucket-name"
     key            = "terraform/state"
     region         = "eu-west-1"      # ✅ Keep the backend region
@@ -16,3 +7,15 @@ terraform {
     encrypt        = true
   }
 }
+
+
+
+
+# terraform {
+#   backend "s3" {
+#     bucket       = "innovate-mart"
+#     key          = "terraform/state.tfstate"
+#     region       = "us-east-1"
+#     use_lockfile = true
+#   }
+# }
