@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: retail-store-rabbitmq
+  labels:
+    app: retail-store-rabbitmq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: retail-store-rabbitmq
+  template:
+    metadata:
+      labels:
+        app: retail-store-rabbitmq
+    spec:
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:3-management
+          ports:
+            - containerPort: 5672
+            - containerPort: 15672
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              value: "retail"
+            - name: RABBITMQ_DEFAULT_PASS
+              value: "retailstore"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: retail-store-rabbitmq
+spec:
+  selector:
+    app: retail-store-rabbitmq
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: 5672
+    - name: management
+      port: 15672
+      targetPort: 15672
+  type: ClusterIP

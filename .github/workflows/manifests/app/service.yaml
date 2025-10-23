@@ -1,12 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: retail-store
+  name: retail-store-ui
+  labels:
+    app: retail-store-ui
 spec:
   type: LoadBalancer
   selector:
-    app: retail-store
+    app: retail-store-ui
   ports:
-    - protocol: TCP
-      port: 80
+    - port: 80
       targetPort: 8080

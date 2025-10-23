@@ -1,0 +1,50 @@
+name: Deploy Retail Store App to EKS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Amazon EKS
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::149536455430:role/github-actions-eks-deploy
+          aws-region: us-east-1
+
+      - name: Update kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig --region us-east-1 --name retail-store-eks-cluster
+
+      - name: Verify cluster connection
+        run: kubectl get nodes
+
+      - name: Deploy dependencies (Postgres, MySQL, Redis, RabbitMQ, DynamoDB)
+        run: |
+          kubectl apply -f manifests/dependencies/
+          kubectl rollout status deployment/retail-store-postgres || true
+          kubectl rollout status deployment/retail-store-mysql || true
+          kubectl rollout status deployment/retail-store-redis || true
+          kubectl rollout status deployment/retail-store-rabbitmq || true
+          kubectl rollout status deployment/retail-store-dynamodb || true
+
+      - name: Deploy application
+        run: |
+          kubectl apply -f manifests/app/
+          kubectl rollout status deployment/retail-store-ui
+
+      - name: Get Service URL
+        run: |
+          kubectl get svc retail-store-ui

@@ -2,6 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: retail-store
+  namespace: default
+  labels:
+    app: retail-store
 spec:
   replicas: 2
   selector:
@@ -14,27 +17,34 @@ spec:
     spec:
       containers:
         - name: retail-store
-          image: your-dockerhub-username/retail-store-sample-app:latest
+          image: public.ecr.aws/aws-containers/retail-store-sample-ui:1.3.0
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
           env:
-            - name: MYSQL_HOST
-              value: mysql
-            - name: MYSQL_PORT
+            # Add environment variables if needed
+            - name: DB_HOST
+              value: "mysql.default.svc.cluster.local"
+            - name: DB_PORT
               value: "3306"
-            - name: POSTGRES_HOST
-              value: postgres
-            - name: POSTGRES_PORT
-              value: "5432"
-            - name: REDIS_HOST
-              value: redis
-            - name: REDIS_PORT
-              value: "6379"
-            - name: RABBITMQ_HOST
-              value: rabbitmq
-            - name: RABBITMQ_PORT
-              value: "5672"
-            - name: DYNAMODB_HOST
-              value: dynamodb-local
-            - name: DYNAMODB_PORT
-              value: "8000"
+            - name: DB_USER
+              value: "root"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: retail-store-db-secret
+                  key: password
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: retail-store
+  namespace: default
+spec:
+  type: LoadBalancer
+  selector:
+    app: retail-store
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
